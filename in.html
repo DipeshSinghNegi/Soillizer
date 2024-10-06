@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <title>Soil and Weather Data Display</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<style>
+    /* Global Styles */
+    
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        background-color: #f4f4f4;
+        color: #333;
+    }
+    
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+    /* Container */
+    
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: center;
+    }
+    /* Heading */
+    
+    h1 {
+        font-size: 3rem;
+        color: #04660f;
+        margin-bottom: 20px;
+    }
+    /* Input Section */
+    
+    .input-section {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 40px;
+    }
+    
+    .input-section input[type="text"] {
+        padding: 10px;
+        width: 300px;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin-right: 10px;
+    }
+    
+    .input-section button {
+        padding: 10px 20px;
+        font-size: 1rem;
+        color: white;
+        background-color: #04660f;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .input-section button:hover {
+        background-color: #009607;
+    }
+    /* Weather Properties Section */
+    
+    .weather-properties {
+        background-color: #e9f5e9;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+        color: #333;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .weather-properties p {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+    }
+    /* Soil Properties Section */
+    
+    .soil-properties {
+        background-color: #f4fff4;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        padding: 20px;
+        color: #333;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .soil-properties h2 {
+        font-size: 2rem;
+        color: #04660f;
+        margin-bottom: 20px;
+    }
+    
+    .soil-properties div {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+    }
+    /* Footer Styles */
+    
+    footer {
+        background-color: #f8f9fa;
+        padding: 10px;
+        text-align: center;
+        color: #666;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+    }
+    /* Responsive Styles */
+    
+    @media (max-width: 768px) {
+        h1 {
+            font-size: 2.5rem;
+        }
+        .input-section {
+            flex-direction: column;
+        }
+        .input-section input[type="text"] {
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        .input-section button {
+            width: 100%;
+        }
+        .weather-properties,
+        .soil-properties {
+            padding: 15px;
+        }
+        .weather-properties p,
+        .soil-properties div {
+            font-size: 1rem;
+        }
+        .soil-properties h2 {
+            font-size: 1.8rem;
+        }
+    }
+</style>
+
+<body>
+    <div class="container">
+        <h1>Soil Properties & Weather Data</h1>
+        <div class="input-section">
+            <input type="text" id="location" placeholder="Enter Your Location (e.g., City Name)" />
+            <button id="fetch-data-btn">Fetch Data</button>
+        </div>
+
+        <div id="weather-properties" class="weather-properties">
+            <!-- Weather properties will be displayed here -->
+        </div>
+
+        <div id="soil-properties" class="soil-properties">
+            <h2>Soil Properties</h2>
+            <div id="soil-name"></div>
+            <div id="bdod"></div>
+            <div id="phh2o"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("fetch-data-btn").addEventListener("click", function() {
+            const location = document.getElementById("location").value;
+
+            if (location.trim() === "") {
+                alert("Please enter a location.");
+                return;
+            }
+
+            // Fetch weather data first
+            fetchWeatherData(location);
+        });
+
+        // Fetch weather data from OpenWeather API
+        function fetchWeatherData(location) {
+            const weatherApiUrl = '/weather'; // Local endpoint
+
+            fetch(weatherApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        location: location
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Weather data not found.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayWeatherData(data);
+                    // After getting weather data, fetch soil type first
+                    fetchSoilData(location);
+                })
+                .catch(error => {
+                    console.error('Error fetching weather data:', error);
+                    document.getElementById("weather-properties").innerHTML = `<p>${error.message}</p>`;
+                });
+        }
+
+        // Fetch soil data from the /soil endpoint
+        function fetchSoilData(location) {
+            const soilApiUrl = '/soil'; // Local endpoint
+
+            fetch(soilApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        location: location
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch soil data.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displaySoilData(data);
+                    // After getting soil data, fetch soil properties
+                    fetchSoilProperties(location);
+                })
+                .catch(error => {
+                    console.error('Error fetching soil data:', error);
+                    document.getElementById("soil-name").innerHTML = `<p>${error.message}</p>`;
+                });
+        }
+
+        // Fetch soil properties from the /soil_properties endpoint
+        function fetchSoilProperties(location) {
+            const soilPropertiesApiUrl = '/soil_properties'; // Local endpoint
+
+            fetch(soilPropertiesApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        location: location
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch soil properties.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displaySoilProperties(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching soil properties:', error);
+                    document.getElementById("bdod").innerHTML = `<p>${error.message}</p>`;
+                    document.getElementById("phh2o").innerHTML = ""; // Clear previous data
+
+                    // Fallback to default coordinates
+                    fetchFallbackSoilProperties();
+                });
+        }
+
+        // Fetch soil properties for fallback coordinates
+        function fetchFallbackSoilProperties() {
+            const fallbackCoordinates = {
+                lat: 38.0,
+                lon: -97.0
+            }; // Default coordinates
+            const soilPropertiesApiUrl = '/soil_properties'; // Local endpoint
+
+            fetch(soilPropertiesApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        location: 'Fallback Location', // Optional
+                        lat: fallbackCoordinates.lat,
+                        lon: fallbackCoordinates.lon
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch soil properties for fallback coordinates.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displaySoilProperties(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching fallback soil properties:', error);
+                    document.getElementById("bdod").innerHTML = `<p>${error.message}</p>`;
+                    document.getElementById("phh2o").innerHTML = ""; // Clear previous data
+                });
+        }
+
+        // Display Weather Data
+        function displayWeatherData(data) {
+            document.getElementById("weather-properties").innerHTML = `
+                <p>Location: ${data.name}</p>
+                <p>Temperature: ${data.main.temp} °C</p>
+                <p>Weather: ${data.weather[0].description}</p>
+                <p>Coordinates: ${data.coord.lat}, ${data.coord.lon}</p>
+            `;
+        }
+
+        // Display Soil Data (type)
+        function displaySoilData(data) {
+            // Display soil type name
+            const soilType = data.properties.most_probable_soil_type || 'Unknown Soil Type';
+            document.getElementById("soil-name").innerHTML = `Soil Type: ${soilType}`;
+        }
+
+        // Display Soil Properties
+        function displaySoilProperties(data) {
+            const layers = data.properties && data.properties.layers;
+
+            // Display bdod and phh2o values
+            let bdodValue = "Bulk Density data not available.";
+            let phh2oValue = "pH data not available.";
+
+            if (layers) {
+                layers.forEach(layer => {
+                    if (layer.code === 'bdod' && layer.depths[0].values.mean) {
+                        bdodValue = `Bulk Density (bdod): ${layer.depths[0].values.mean} g/cm³`;
+                    }
+
+                    if (layer.code === 'phh2o' && layer.depths[0].values.mean) {
+                        phh2oValue = `pH in Water (phh2o): ${(layer.depths[0].values.mean / 10).toFixed(1)}`; // Converting pH*10 to pH
+                    }
+                });
+            } else {
+                bdodValue = "Bulk Density data not available.";
+                phh2oValue = "pH data not available.";
+            }
+
+            document.getElementById("bdod").innerHTML = bdodValue;
+            document.getElementById("phh2o").innerHTML = phh2oValue;
+            // API Keys
+            const WEATHER_API_KEY = 'aba1797aeeb5b408ca62ef1a67fa8997'; // OpenWeather API Key
+            const NASA_API_KEY = 'Z1C2eZiWPP868Ihx7WnKhAJJgRqMXuFVxBmPkfEN'; // NASA API Key for SMAP data
+
+            // Hardcoded fallback coordinates
+            const FALLBACK_COORDINATES = {
+                lat: 38.0,
+                lon: -97.0
+            };
+
+            // Fetch weather data from OpenWeather API
+            function fetchWeatherData(location) {
+                const weatherApiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${WEATHER_API_KEY}&units=metric`;
+
+                return fetch(weatherApiUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Weather data not found');
+                        }
+                        return response.json();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching weather data:', error);
+                        throw error;
+                    });
+            }
+
+            // Fetch soil data using NASA's SMAP API
+            function fetchSoilData(lat, lon) {
+                const soilApiUrl = `https://api-test.openepi.io/soil/type?lat=${lat}&lon=${lon}`;
+
+                return fetch(soilApiUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch soil data');
+                        }
+                        return response.json();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching soil data:', error);
+                        throw error;
+                    });
+            }
+
+            // Fetch soil properties
+            function fetchSoilProperties(lat, lon) {
+                const soilPropertiesApiUrl = `https://api-test.openepi.io/soil/property?lat=${lat}&lon=${lon}&depths=0-5cm&properties=bdod,phh2o&values=mean`;
+
+                return fetch(soilPropertiesApiUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch soil properties');
+                        }
+                        return response.json();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching soil properties:', error);
+                        throw error;
+                    });
+            }
+
+            // Fetch fallback soil properties for hardcoded coordinates
+            function fetchFallbackSoilProperties() {
+                const lat = FALLBACK_COORDINATES.lat;
+                const lon = FALLBACK_COORDINATES.lon;
+
+                return fetchSoilProperties(lat, lon)
+                    .catch(error => {
+                        console.error('Error fetching fallback soil properties:', error);
+                    });
+            }
+
+            // Function to handle fetching data for a given location
+            function fetchData(location) {
+                fetchWeatherData(location)
+                    .then(weatherData => {
+                        const {
+                            lat,
+                            lon
+                        } = weatherData.coord;
+
+                        // Display weather data
+                        displayWeatherData(weatherData);
+
+                        // Fetch soil data using weather coordinates
+                        return fetchSoilData(lat, lon);
+                    })
+                    .then(soilData => {
+                        // Display soil type data
+                        displaySoilData(soilData);
+
+                        // Fetch soil properties using coordinates from weather data
+                        return fetchSoilProperties(soilData.lat, soilData.lon);
+                    })
+                    .then(soilPropertiesData => {
+                        // Display soil properties data
+                        displaySoilProperties(soilPropertiesData);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data:', error);
+
+                        // If error occurs, fetch fallback soil properties
+                        fetchFallbackSoilProperties().then(fallbackData => {
+                            displaySoilProperties(fallbackData);
+                        });
+                    });
+            }
+
+            // Display Weather Data
+            function displayWeatherData(data) {
+                document.getElementById("weather-properties").innerHTML = `
+        <p>Location: ${data.name}</p>
+        <p>Temperature: ${data.main.temp} °C</p>
+        <p>Weather: ${data.weather[0].description}</p>
+        <p>Coordinates: ${data.coord.lat}, ${data.coord.lon}</p>
+    `;
+            }
+
+            // Display Soil Data
+            function displaySoilData(data) {
+                const soilType = data.properties.most_probable_soil_type || 'Unknown Soil Type';
+                document.getElementById("soil-name").innerHTML = `Soil Type: ${soilType}`;
+            }
+
+            // Display Soil Properties
+            function displaySoilProperties(data) {
+                const layers = data.properties && data.properties.layers;
+
+                let bdodValue = "Bulk Density data not available.";
+                let phh2oValue = "pH data not available.";
+
+                if (layers) {
+                    layers.forEach(layer => {
+                        if (layer.code === 'bdod' && layer.depths[0].values.mean) {
+                            bdodValue = `Bulk Density (bdod): ${layer.depths[0].values.mean} g/cm³`;
+                        }
+
+                        if (layer.code === 'phh2o' && layer.depths[0].values.mean) {
+                            phh2oValue = `pH in Water (phh2o): ${(layer.depths[0].values.mean / 10).toFixed(1)}`; // Converting pH*10 to pH
+                        }
+                    });
+                }
+
+                document.getElementById("bdod").innerHTML = bdodValue;
+                document.getElementById("phh2o").innerHTML = phh2oValue;
+            }
+
+        }
+    </script>
+
+</body>
+
+</html>
